@@ -15,9 +15,10 @@ void setupDataMemory(        char* base_address,
                              unsigned int numberOfBytes){
     // Copy each byte from Data_storage[] into the memory space
     // starting at base_address + offset.
-    unsigned int i;
-    for (i = 0; i < numberOfBytes; i++) {
-        *(base_address + offset + i) = datasection[i];
+    unsigned int i = 0;
+    while (i < numberOfBytes) {
+        base_address[offset + i] = datasection[i];
+        i++;
     }
     return;
 }
@@ -30,13 +31,13 @@ unsigned int buildIInstruction(unsigned char opcode,
                                int immediate){
     unsigned int machineCode = 0;
     unsigned int mask = 0;
-    machineCode = immediate & 0x0000FFFF;
-    mask = ((unsigned int)(rs & 0x000000FF)) << 21;
-    machineCode = machineCode | mask;
-    mask = ((unsigned int)(rt & 0x000000FF)) << 16;
-    machineCode = machineCode | mask;
-    mask = ((unsigned int)(opcode & 0x000000FF)) << 26;
-    machineCode = machineCode | mask;
+    machineCode = (unsigned int)(immediate) & 0xFFFF;
+    mask = ((unsigned int)(opcode & 0x3F)) << 26;
+    machineCode |= mask;
+    mask = ((unsigned int)(rs & 0x1F)) << 21;
+    machineCode |= mask;
+    mask = ((unsigned int)(rt & 0x1F)) << 16;
+    machineCode |= mask;
     //  machineCode should be OK now.
     return machineCode;  // finally return a 32-bit machine code.
 }
@@ -49,12 +50,12 @@ unsigned int buildJInstruction(unsigned char opcode,
     unsigned int machineCode = 0;
     unsigned int mask = 0;
 
-    // Place the 26-bit target address in bits [25:0]
-    machineCode = immediate & 0x03FFFFFF;
-
     // Place the 6-bit opcode in bits [31:26]
     mask = ((unsigned int)(opcode & 0x3F)) << 26;
-    machineCode = machineCode | mask;
+    machineCode = mask;
+
+    // Place the 26-bit target address in bits [25:0]
+    machineCode |= ((unsigned int)(immediate) & 0x03FFFFFF);
 
     return machineCode;  // finally return a 32-bit machine code.
 }
@@ -69,31 +70,24 @@ unsigned int buildRInstruction(unsigned char opcode,
     // R-type format:  oooooo sssss ttttt ddddd hhhhh ffffff
     //                 [31:26][25:21][20:16][15:11][10:6][5:0]
     unsigned int machineCode = 0;
-    unsigned int mask = 0;
 
     // opcode (bits 31-26) — always 0 for R-type, but we include it anyway
-    mask = ((unsigned int)(opcode & 0x3F)) << 26;
-    machineCode = machineCode | mask;
+    machineCode |= ((unsigned int)(opcode & 0x3F)) << 26;
 
     // rs (bits 25-21)
-    mask = ((unsigned int)(rs & 0x1F)) << 21;
-    machineCode = machineCode | mask;
+    machineCode |= ((unsigned int)(rs & 0x1F)) << 21;
 
     // rt (bits 20-16)
-    mask = ((unsigned int)(rt & 0x1F)) << 16;
-    machineCode = machineCode | mask;
+    machineCode |= ((unsigned int)(rt & 0x1F)) << 16;
 
     // rd (bits 15-11)
-    mask = ((unsigned int)(rd & 0x1F)) << 11;
-    machineCode = machineCode | mask;
+    machineCode |= ((unsigned int)(rd & 0x1F)) << 11;
 
     // shamt (bits 10-6)
-    mask = ((unsigned int)(shamt & 0x1F)) << 6;
-    machineCode = machineCode | mask;
+    machineCode |= ((unsigned int)(shamt & 0x1F)) << 6;
 
     // function code (bits 5-0)
-    mask = ((unsigned int)(function & 0x3F));
-    machineCode = machineCode | mask;
+    machineCode |= ((unsigned int)(function & 0x3F));
 
     return machineCode;  // finally return a 32-bit machine code.
 }
@@ -121,7 +115,7 @@ void setupInstructionMemory( char* base_memory_address,
 
         // Thirdly, what is the opcode of this instruction?
         // Answer:  0b101111 (0x2F)
-            opcode = 0b101111;
+            opcode = 0x2F;
             machineCode = buildIInstruction(opcode,
                                             instructionStorage[i].rs,
                                             instructionStorage[i].rt,
@@ -139,7 +133,7 @@ void setupInstructionMemory( char* base_memory_address,
         // Thirdly, what is the opcode of this instruction?
         // Answer:  0b100000 (0x20 = 32)
 
-            opcode = 0b100000;
+            opcode = 0x20;
             machineCode = buildIInstruction(opcode,
                                             instructionStorage[i].rs,
                                             instructionStorage[i].rt,
@@ -159,7 +153,7 @@ void setupInstructionMemory( char* base_memory_address,
         // Thirdly, what is the opcode of this instruction?
         // Answer:  0b000001 (0x01) — REGIMM opcode used for bge-style branches
 
-            opcode = 0b000001;
+            opcode = 0x01;
             machineCode = buildIInstruction(opcode,
                                             instructionStorage[i].rs,
                                             instructionStorage[i].rt,
@@ -177,7 +171,7 @@ void setupInstructionMemory( char* base_memory_address,
         // Thirdly, what is the opcode of this instruction?
         // Answer:  0b100011 (0x23 = 35)
 
-            opcode = 0b100011;
+            opcode = 0x23;
             machineCode = buildIInstruction(opcode,
                                             instructionStorage[i].rs,
                                             instructionStorage[i].rt,
@@ -195,7 +189,7 @@ void setupInstructionMemory( char* base_memory_address,
         // Thirdly, what is the opcode of this instruction?
         // Answer:  0b101011 (0x2B = 43)
 
-            opcode = 0b101011;
+            opcode = 0x2B;
             machineCode = buildIInstruction(opcode,
                                             instructionStorage[i].rs,
                                             instructionStorage[i].rt,
@@ -213,13 +207,13 @@ void setupInstructionMemory( char* base_memory_address,
         // Thirdly, what is the opcode of this instruction?
         // Answer:  opcode = 0b000000 (0x00), function code = 0b100000 (0x20)
 
-            opcode = 0b000000;          // R-type opcode is always 0
+            opcode = 0x00;          // R-type opcode is always 0
             machineCode = buildRInstruction(opcode,
                                             instructionStorage[i].rs,
                                             instructionStorage[i].rt,
                                             instructionStorage[i].rd,
                                             0,        // shamt = 0 for add
-                                            0b100000); // function code for add = 0x20
+                                            0x20); // function code for add = 0x20
             write_dword(base_memory_address, codeOffset+i*4, machineCode);
         }
         else if (strcmp(instructionStorage[i].instruction, "addi") == 0 ){
@@ -233,7 +227,7 @@ void setupInstructionMemory( char* base_memory_address,
         // Thirdly, what is the opcode of this instruction?
         // Answer:  0b001000 (0x08 = 8)
 
-            opcode = 0b001000;
+            opcode = 0x08;
             machineCode = buildIInstruction(opcode,
                                             instructionStorage[i].rs,
                                             instructionStorage[i].rt,
@@ -251,7 +245,7 @@ void setupInstructionMemory( char* base_memory_address,
         // Thirdly, what is the opcode of this instruction?
         // Answer:  0b000010 (0x02 = 2)
 
-            opcode = 0b000010;
+            opcode = 0x02;
             machineCode = buildJInstruction(opcode,
                                             instructionStorage[i].address);
             write_dword(base_memory_address, codeOffset+i*4, machineCode);
